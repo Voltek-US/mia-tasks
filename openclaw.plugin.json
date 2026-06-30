@@ -2,11 +2,22 @@
   "id": "mia-tasks",
   "name": "Mia Tasks",
   "description": "The user-facing task layer for an executive assistant — a curated, persistent shared to-do list (priority, due date, owner, stakeholder, status) on top of Mia. Adds the managed to-do list OpenClaw's run registry and inferred commitments don't provide.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "activation": {
     "onStartup": true
   },
   "skills": ["./skills"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "defaultPriority": {
+        "type": "string",
+        "enum": ["low", "normal", "high", "urgent"],
+        "description": "Priority given to a new task when the user doesn't specify one. Default: normal."
+      }
+    }
+  },
   "contracts": {
     "tools": ["mia_tasks"]
   }

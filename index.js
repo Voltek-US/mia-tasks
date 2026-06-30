@@ -19,7 +19,7 @@
  * runnable entry OpenClaw loads (see package.json "openclaw.extensions").
  */
 
-import { definePluginEntry } from "openclaw/plugin-sdk";
+import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -102,7 +102,7 @@ const PARAMS = {
     },
     id: { type: "string", description: "Task id (required for update/done/remove)." },
     title: { type: "string", description: "Task title (required for add)." },
-    priority: { type: "string", enum: PRIORITIES, description: "Priority. Defaults to normal." },
+    priority: { type: "string", enum: PRIORITIES, description: "Priority (low|normal|high|urgent). Omit to use the configured default." },
     dueDate: { type: "string", description: "Due date — ISO (2026-06-26) or natural ('Friday')." },
     humanOwner: { type: "string", description: "Who owns doing it (the user, a colleague)." },
     stakeholder: { type: "string", description: "Who it's for / who cares about it." },
@@ -112,7 +112,7 @@ const PARAMS = {
   },
 };
 
-function runTool(args) {
+function runTool(args, defaultPriority) {
   const a = args && typeof args === "object" ? args : {};
   const action = clampEnum(a.action, ["add", "list", "update", "done", "remove"], "");
   const tasks = load();
@@ -124,7 +124,7 @@ function runTool(args) {
     const task = {
       id: newId(),
       title,
-      priority: clampEnum(a.priority, PRIORITIES, "normal"),
+      priority: clampEnum(a.priority, PRIORITIES, defaultPriority),
       status: clampEnum(a.status, STATUSES, "todo"),
       dueDate: str(a.dueDate),
       humanOwner: str(a.humanOwner),
@@ -185,6 +185,10 @@ export default definePluginEntry({
   name: "Mia Tasks",
   description: "A shared executive to-do list for Mia and the user (the user-facing task layer).",
   register(api) {
+    // configSchema.defaultPriority — the priority a new task gets when the user
+    // doesn't say one (falls back to "normal").
+    const cfg = api.pluginConfig ?? {};
+    const defaultPriority = clampEnum(cfg.defaultPriority, PRIORITIES, "normal");
     api.registerTool(
       {
         name: "mia_tasks",
@@ -194,7 +198,7 @@ export default definePluginEntry({
           "list ([filterStatus]), update (id + fields), done (id), remove (id). " +
           "Use this for 'remind me', 'add to my list', 'what's on my list', 'mark X done'.",
         parameters: PARAMS,
-        execute: async (_toolCallId, rawParams) => runTool(rawParams),
+        execute: async (_toolCallId, rawParams) => runTool(rawParams, defaultPriority),
       },
       { name: "mia_tasks" },
     );

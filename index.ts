@@ -16,7 +16,7 @@
  * index.js is the runnable entry OpenClaw loads.
  */
 
-import { definePluginEntry } from "openclaw/plugin-sdk";
+import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -40,6 +40,7 @@ type Task = {
 };
 
 type ToolResult = { content: Array<{ type: "text"; text: string }>; details: unknown };
+type Config = { defaultPriority?: TaskPriority };
 
 const STATUSES: TaskStatus[] = ["todo", "doing", "waiting", "blocked", "done"];
 const PRIORITIES: TaskPriority[] = ["low", "normal", "high", "urgent"];
@@ -113,7 +114,7 @@ const PARAMS = {
     action: { type: "string", enum: ["add", "list", "update", "done", "remove"], description: "What to do with the shared to-do list." },
     id: { type: "string", description: "Task id (required for update/done/remove)." },
     title: { type: "string", description: "Task title (required for add)." },
-    priority: { type: "string", enum: PRIORITIES, description: "Priority. Defaults to normal." },
+    priority: { type: "string", enum: PRIORITIES, description: "Priority (low|normal|high|urgent). Omit to use the configured default." },
     dueDate: { type: "string", description: "Due date — ISO (2026-06-26) or natural ('Friday')." },
     humanOwner: { type: "string", description: "Who owns doing it (the user, a colleague)." },
     stakeholder: { type: "string", description: "Who it's for / who cares about it." },
@@ -125,7 +126,7 @@ const PARAMS = {
 
 type Args = Record<string, unknown>;
 
-function runTool(args: Args): ToolResult {
+function runTool(args: Args, defaultPriority: TaskPriority): ToolResult {
   const a = args && typeof args === "object" ? args : {};
   const action = clampEnum(a.action, ["add", "list", "update", "done", "remove"] as const, "");
   const tasks = load();
@@ -137,7 +138,7 @@ function runTool(args: Args): ToolResult {
     const task: Task = {
       id: newId(),
       title,
-      priority: (clampEnum(a.priority, PRIORITIES, "normal") || "normal") as TaskPriority,
+      priority: (clampEnum(a.priority, PRIORITIES, defaultPriority) || defaultPriority) as TaskPriority,
       status: (clampEnum(a.status, STATUSES, "todo") || "todo") as TaskStatus,
       dueDate: str(a.dueDate),
       humanOwner: str(a.humanOwner),
@@ -196,6 +197,10 @@ export default definePluginEntry({
   name: "Mia Tasks",
   description: "A shared executive to-do list for Mia and the user (the user-facing task layer).",
   register(api) {
+    // configSchema.defaultPriority — the priority a new task gets when the user
+    // doesn't say one (falls back to "normal").
+    const cfg = (api.pluginConfig ?? {}) as Config;
+    const defaultPriority = (clampEnum(cfg.defaultPriority, PRIORITIES, "normal") || "normal") as TaskPriority;
     api.registerTool(
       {
         name: "mia_tasks",
@@ -205,7 +210,7 @@ export default definePluginEntry({
           "list ([filterStatus]), update (id + fields), done (id), remove (id). " +
           "Use this for 'remind me', 'add to my list', 'what's on my list', 'mark X done'.",
         parameters: PARAMS,
-        execute: async (_toolCallId: string, rawParams: unknown) => runTool(rawParams as Args),
+        execute: async (_toolCallId: string, rawParams: unknown) => runTool(rawParams as Args, defaultPriority),
       },
       { name: "mia_tasks" },
     );

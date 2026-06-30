@@ -1,6 +1,6 @@
 {
   "name": "@voltek-us/mia-tasks",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Mia Tasks — the user-facing shared to-do list (task layer) for an executive assistant on OpenClaw.",
   "type": "module",
   "main": "index.js",
